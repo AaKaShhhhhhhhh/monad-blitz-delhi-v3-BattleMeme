@@ -72,6 +72,13 @@ export default function WarDetail() {
   const { writeContract, data: resolveHash, isPending: isResolvePending, reset: resetResolve } = useWriteContract()
   const { isLoading: isResolveTxLoading, isSuccess: isResolveTxSuccess } = useWaitForTransactionReceipt({ hash: resolveHash })
 
+  useEffect(() => {
+    if (!isResolveTxSuccess) return
+    toast.success('War resolved! Winner determined by stake.')
+    resetResolve()
+    refetch()
+  }, [isResolveTxSuccess, resetResolve, refetch])
+
   if (!memeWar) {
     return <div className="text-center py-20 text-neutral-400">Loading...</div>
   }
@@ -122,13 +129,6 @@ export default function WarDetail() {
       }
     )
   }
-
-  useEffect(() => {
-    if (!isResolveTxSuccess) return
-    toast.success('War resolved! Winner determined by stake.')
-    resetResolve()
-    refetch()
-  }, [isResolveTxSuccess, resetResolve, refetch])
 
   return (
     <div className="relative pb-10">
@@ -215,12 +215,6 @@ export default function WarDetail() {
             </div>
 
             <div className="mt-3 relative">
-              <div className="absolute -top-6 left-0 text-xs font-bold text-[#c4b5fd]" style={{ transform: `translateX(${Math.min(Math.max(bPct, 8), 92)}%)` }}>
-                {bPct.toFixed(0)}%
-              </div>
-              <div className="absolute -top-6 right-0 text-xs font-bold text-[#67e8f9]" style={{ transform: `translateX(-${Math.min(Math.max(sPct, 8), 92)}%)` }}>
-                {sPct.toFixed(0)}%
-              </div>
               <div className="h-6 rounded-full overflow-hidden border border-white/10 bg-black/20 flex">
                 <div
                   className="h-full bg-[linear-gradient(135deg,#7c3aed,#4f46e5)] shadow-[inset_0_0_18px_rgba(124,58,237,0.6)]"

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header.jsx'
 import Background3D from './components/Background3D.jsx'
 import Home from './pages/Home.jsx'
@@ -10,7 +10,7 @@ import { Toaster } from 'react-hot-toast'
 
 function App() {
   return (
-    <BrowserRouter>
+    <>
       <Background3D />
       <Header />
       <div className="relative z-[1] max-w-4xl mx-auto px-4 pb-12 pt-16">
@@ -23,7 +23,7 @@ function App() {
         </Routes>
       </div>
       <Toaster position="bottom-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
-    </BrowserRouter>
+    </>
   )
 }
 
