@@ -10,8 +10,11 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   const [side, setSide] = useState(0) // 0 = BELIEVE, 1 = SKEPTIC
   const [amountStr, setAmountStr] = useState('0.001')
 
-  const fallbackMaxStakeWei = parseEther('0.01')
-  const { data: onchainMaxStakeWei } = useReadContract({
+  const {
+    data: onchainMaxStakeWei,
+    isLoading: isMaxStakeLoading,
+    error: maxStakeError,
+  } = useReadContract({
     address: MEMEWAR_ADDRESS,
     abi: MEMEWAR_ABI,
     functionName: 'MAX_STAKE',
@@ -19,14 +22,9 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
       staleTime: 60_000,
     },
   })
-  const maxStakeWei = onchainMaxStakeWei ?? fallbackMaxStakeWei
-  const maxStakeDisplay = (() => {
-    try {
-      return formatEther(maxStakeWei)
-    } catch {
-      return '0.01'
-    }
-  })()
+  const isMaxStakeReady = typeof onchainMaxStakeWei === 'bigint'
+  const maxStakeWei = isMaxStakeReady ? onchainMaxStakeWei : null
+  const maxStakeDisplay = isMaxStakeReady ? formatEther(onchainMaxStakeWei) : '…'
 
   // Stake tx tracking
   const {
@@ -70,6 +68,11 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   const isResolved = memeWar?.status === 1
 
   const handleStake = async () => {
+    if (!isMaxStakeReady || maxStakeWei === null) {
+      toast.error('Unable to load MAX_STAKE (RPC busy). Try again or change RPC.')
+      return
+    }
+
     if (!amountStr) {
       toast.error('Enter an amount')
       return

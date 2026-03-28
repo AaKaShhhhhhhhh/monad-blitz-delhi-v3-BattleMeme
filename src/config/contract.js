@@ -1,4 +1,10 @@
-export const MEMEWAR_ADDRESS = "0x774e9a2ad984FaAD390c256CAaC3F689594F9D36"
+const DEFAULT_MEMEWAR_ADDRESS = "0xB14A26D5bBB128E063988DBD0183E5E67AB4eE4c"
+
+export const MEMEWAR_ADDRESS = (() => {
+  const fromEnv = import.meta.env.VITE_MEMEWAR_ADDRESS
+  if (typeof fromEnv === 'string' && fromEnv.trim().length === 42) return fromEnv.trim()
+  return DEFAULT_MEMEWAR_ADDRESS
+})()
 
 export const MEMEWAR_ABI = [
   {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
