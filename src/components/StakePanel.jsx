@@ -39,92 +39,137 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     })
   }
 
-  // STATE A
+  // STATE A: NOT CONNECTED
   if (!isConnected) {
     return (
-      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl flex flex-col items-center justify-center text-center gap-4 py-12">
-        <div className="text-4xl">🔌</div>
-        <h3 className="text-xl font-bold">Connect to join the war</h3>
-        <p className="text-neutral-400 text-sm mb-4">You need a wallet connected to the Monad Testnet to stake your position.</p>
-        <ConnectButton />
+      <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(124,58,237,0.10)]">
+        <div className="mx-auto w-16 h-16 rounded-full border border-[rgba(124,58,237,0.35)] bg-[rgba(124,58,237,0.10)] flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(124,58,237,0.25)]">
+          🔌
+        </div>
+        <h3 className="mt-5 text-xl font-extrabold text-white">Connect to enter</h3>
+        <p className="mt-2 text-sm text-white/60">Connect your wallet to stake on a side.</p>
+        <div className="mt-6 inline-flex rounded-xl p-1 border border-[rgba(124,58,237,0.35)] bg-black/20 shadow-[0_0_25px_rgba(124,58,237,0.20)]">
+          <ConnectButton />
+        </div>
       </div>
     )
   }
 
-  // STATE C - Active, not staked
+  // STATE C: ACTIVE, NOT STAKED
   if (isActive && !userStake?.hasStaked) {
     const sideName = side === 0 ? 'BELIEVE' : 'SKEPTIC'
     
     return (
-      <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl">
-        <h4 className="text-lg font-bold mb-6">Choose Your Side</h4>
-        
-        <div className="flex flex-col gap-6">
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setSide(0)}
-              className={`flex-1 py-4 font-black text-lg rounded-xl border-2 transition-all ${side === 0 ? 'border-believe bg-believe text-white scale-[1.02]' : 'border-neutral-600 bg-neutral-700 text-neutral-400 hover:border-believe/50 hover:text-white'}`}
-            >
-              💜 BELIEVE
-            </button>
-            <button 
-              onClick={() => setSide(1)}
-              className={`flex-1 py-4 font-black text-lg rounded-xl border-2 transition-all ${side === 1 ? 'border-skeptic bg-skeptic text-white scale-[1.02]' : 'border-neutral-600 bg-neutral-700 text-neutral-400 hover:border-skeptic/50 hover:text-white'}`}
-            >
-              🔵 SKEPTIC
-            </button>
-          </div>
-          
-          <div>
-            <div className="flex justify-between text-sm mb-2">
-              <label className="text-neutral-300 font-medium">Stake Amount (MON)</label>
-              <span className="text-neutral-500">MAX: 0.01 MON</span>
-            </div>
-            <input 
-              type="number"
-              min="0.001"
-              max="0.01"
-              step="0.001"
-              value={amountStr}
-              onChange={e => setAmountStr(e.target.value)}
-              className={`w-full bg-neutral-900 border-2 rounded-xl px-4 py-4 font-mono text-lg focus:outline-none transition-colors ${side === 0 ? 'focus:border-believe border-neutral-700' : 'focus:border-skeptic border-neutral-700'}`}
-            />
-          </div>
-
-          {writeError && <p className="text-red-400 text-sm p-3 bg-red-400/10 rounded-lg">{writeError.shortMessage || writeError.message}</p>}
-
-          {hash && (
-            <div className="text-sm p-3 bg-blue-400/10 rounded-lg border border-blue-400/20 text-blue-300">
-              <div className="mb-1">{isTxLoading ? '⏳ Waiting for confirmation...' : '✅ Stake confirmed!'}</div>
-              <a href={`https://testnet.monadexplorer.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadExplorer ↗</a>
-            </div>
-          )}
-
-          {isSuccess ? (
-            <div className="flex flex-col gap-3">
-              <div className="bg-green-500/20 text-green-400 font-bold py-4 rounded-xl text-center border border-green-500/50">
-                You staked {amountStr} MON!
-              </div>
-              <a
-                href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`I just staked ${amountStr} MON on ${sideName} ⚔️ "${memeWar.title}" on MemeWar! Prove me wrong 👇`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="border border-purple-500 text-purple-400 font-bold py-3 rounded-xl text-center hover:bg-purple-500/20 transition-colors"
-                onClick={() => refetch()}
-              >
-                📣 Share on Farcaster
-              </a>
-            </div>
-          ) : (
-            <button
-              onClick={handleStake}
-              disabled={isPending || isTxLoading}
-              className={`w-full font-black text-lg py-4 rounded-xl text-white shadow-xl transition-all ${side === 0 ? 'bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700' : 'bg-gradient-to-r from-cyan-600 to-cyan-800 hover:from-cyan-500 hover:to-cyan-700'} disabled:opacity-50 disabled:scale-100 flex justify-center items-center`}
-            >
-              {isPending || isTxLoading ? <span className="animate-pulse">STAKING...</span> : `STAKE ${amountStr || 0} MON ON ${sideName}`}
-            </button>
-          )}
+      <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-6 sm:p-7 shadow-[0_0_35px_rgba(124,58,237,0.10)] space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-extrabold text-white">Stake</h3>
+          <div className="text-xs font-semibold text-white/50">Select a side</div>
         </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={() => setSide(0)}
+            className={[
+              'w-full h-16 rounded-full border text-left px-6 flex items-center justify-between transition-all duration-300',
+              side === 0
+                ? 'border-[#7c3aed] bg-[linear-gradient(135deg,#7c3aed,#4f46e5)] text-white shadow-[0_0_25px_rgba(124,58,237,0.7)] scale-[1.03]'
+                : 'border-[rgba(124,58,237,0.45)] bg-[rgba(0,0,0,0.35)] text-white/85 hover:bg-[rgba(124,58,237,0.12)]',
+            ].join(' ')}
+          >
+            <span className="font-extrabold tracking-wide">💜 BELIEVE</span>
+            <span className="text-sm font-semibold opacity-80">{side === 0 ? 'Selected' : 'Choose'}</span>
+          </button>
+
+          <button
+            onClick={() => setSide(1)}
+            className={[
+              'w-full h-16 rounded-full border text-left px-6 flex items-center justify-between transition-all duration-300',
+              side === 1
+                ? 'border-[#06b6d4] bg-[linear-gradient(135deg,#06b6d4,#22d3ee)] text-white shadow-[0_0_25px_rgba(6,182,212,0.7)] scale-[1.03]'
+                : 'border-[rgba(6,182,212,0.45)] bg-[rgba(0,0,0,0.35)] text-white/85 hover:bg-[rgba(6,182,212,0.12)]',
+            ].join(' ')}
+          >
+            <span className="font-extrabold tracking-wide">🔵 SKEPTIC</span>
+            <span className="text-sm font-semibold opacity-80">{side === 1 ? 'Selected' : 'Choose'}</span>
+          </button>
+        </div>
+
+        <div>
+          <div className="flex items-end justify-between mb-2">
+            <label className="text-sm font-bold text-white/80">Amount (MON)</label>
+            <span className="text-xs text-white/40">MAX: 0.01 MON</span>
+          </div>
+          <input
+            type="number"
+            min="0.001"
+            max="0.01"
+            step="0.001"
+            value={amountStr}
+            onChange={e => setAmountStr(e.target.value)}
+            className="w-full rounded-xl px-5 py-4 bg-[rgba(0,0,0,0.4)] border border-white/10 text-white text-2xl font-mono outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_15px_rgba(124,58,237,0.4)]"
+          />
+        </div>
+
+        {writeError && (
+          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-200 text-sm">
+            {writeError.shortMessage || writeError.message}
+          </div>
+        )}
+
+        {hash && (
+          <div className="p-4 rounded-xl border border-white/10 bg-black/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-white/70">
+                {isTxLoading ? '⏱ Confirming…' : '✅ Confirmed'}
+              </span>
+              <span className="text-xs font-mono text-white/40">{sideName}</span>
+            </div>
+            <a
+              href={`https://testnet.monadexplorer.com/tx/${hash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 block text-xs font-mono text-[#67e8f9] hover:text-white underline truncate"
+            >
+              {hash}
+            </a>
+          </div>
+        )}
+
+        {isSuccess ? (
+          <div className="space-y-4 animate-in fade-in zoom-in-95">
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5 text-center">
+              <div className="text-emerald-200 font-extrabold">Staked</div>
+              <div className="mt-1 text-white font-mono text-xl">{amountStr} MON</div>
+            </div>
+            <a
+              href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`⚡ ZEUS-X: Injected ${amountStr} MON into ${sideName} module on "${memeWar.title}". Support the grid 👇`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full text-center rounded-full py-3 font-bold border border-[rgba(124,58,237,0.5)] text-[#c4b5fd] hover:bg-[#7c3aed] hover:text-white transition-all hover:scale-[1.02]"
+              onClick={() => refetch()}
+            >
+              📣 Share on Farcaster
+            </a>
+          </div>
+        ) : (
+          <button
+            onClick={handleStake}
+            disabled={isPending || isTxLoading}
+            className={[
+              'w-full rounded-full py-4 font-extrabold text-white transition-all flex items-center justify-center',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              side === 0
+                ? 'bg-[linear-gradient(135deg,#7c3aed,#4f46e5)] shadow-[0_0_30px_rgba(124,58,237,0.6)] hover:shadow-[0_0_45px_rgba(124,58,237,0.9)]'
+                : 'bg-[linear-gradient(135deg,#06b6d4,#22d3ee)] shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)]',
+              !(isPending || isTxLoading) ? 'hover:scale-[1.02]' : '',
+            ].join(' ')}
+          >
+            {(isPending || isTxLoading) && (
+              <span className="mr-3 inline-block w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            )}
+            {isPending || isTxLoading ? 'Staking…' : 'Stake'}
+          </button>
+        )}
       </div>
     )
   }
@@ -133,15 +178,21 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   if (isActive && userStake?.hasStaked) {
     const isBelieve = userStake.side === 0
     return (
-      <div className={`p-6 rounded-xl border border-neutral-700 text-center ${isBelieve ? 'bg-believe/10' : 'bg-skeptic/10'}`}>
-        <h4 className="text-xl font-black mb-4">Your Position</h4>
-        <div className="text-4xl mb-4 font-black">
-          {isBelieve ? <span className="text-believe">💜 BELIEVE</span> : <span className="text-skeptic">🔵 SKEPTIC</span>}
+      <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(124,58,237,0.10)] space-y-5">
+        <div className="text-xs font-semibold text-white/60 tracking-widest uppercase">Stake locked</div>
+        <div
+          className={[
+            'text-3xl font-black',
+            isBelieve ? 'text-[#c4b5fd]' : 'text-[#67e8f9]',
+          ].join(' ')}
+          style={{ textShadow: isBelieve ? '0 0 18px rgba(124,58,237,0.55)' : '0 0 18px rgba(6,182,212,0.55)' }}
+        >
+          {isBelieve ? 'BELIEVE' : 'SKEPTIC'}
         </div>
-        <p className="font-mono text-xl text-white mb-6 bg-neutral-900 border border-neutral-700 mx-auto py-2 px-4 rounded-lg inline-block">
-          {formatEther(userStake.amount)} MON
-        </p>
-        <p className="text-neutral-400 italic">Come back after the deadline to claim winnings.</p>
+        <div className="rounded-full border border-white/10 bg-black/20 px-5 py-3 inline-block">
+          <div className="text-xs font-mono text-white/50">{formatEther(userStake.amount)} MON</div>
+        </div>
+        <p className="text-sm text-white/50">Wait for resolution to claim (if you win).</p>
       </div>
     )
   }
@@ -150,84 +201,98 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   if (isResolved && userStake?.hasStaked) {
     const isWinner = userStake.side === memeWar.winningSide
     
-    // STATE F - Claimed
+    // STATE F: CLAIMED
     if (isWinner && hasClaimed) {
       return (
-        <div className="bg-green-900/20 p-8 rounded-xl border border-green-500 text-center shadow-[0_0_30px_rgba(34,197,94,0.15)] flex flex-col gap-4 items-center">
-          <div className="text-6xl mb-2">✅</div>
-          <h4 className="text-3xl font-black text-green-400">Winnings Claimed!</h4>
-          <p className="text-green-200/60 mb-2">You placed {formatEther(userStake.amount)} MON on the winning side.</p>
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(34,197,94,0.14)] space-y-5">
+          <div className="mx-auto w-14 h-14 rounded-full border border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center text-2xl">✓</div>
+          <div>
+            <h4 className="text-xl font-extrabold text-white">Claimed</h4>
+            <div className="mt-1 text-sm text-white/60">Winnings transferred</div>
+          </div>
+          <p className="text-sm text-white/60">{formatEther(userStake.amount)} MON claimed.</p>
           <a
-              href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`🏆 I just won a MemeWar on Monad! Staked on "${memeWar.title}" and claimed my MON winnings ⚔️`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 border border-purple-500 text-purple-400 font-bold py-2 px-6 rounded-full hover:bg-purple-500/20 transition-colors w-full"
-            >
-              📣 Share your win on Farcaster
+            href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`🏆 DOMINANCE ESTABLISHED: My ZEUS-X Terminal prediction for "${memeWar.title}" was valid. Winnings claimed. ⚔️`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-full py-3 font-bold border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500 hover:text-black transition-all"
+          >
+            📣 Share victory
           </a>
         </div>
       )
     }
 
-    // STATE D - Winner, not claimed
+    // STATE D: WINNER, NOT CLAIMED
     if (isWinner && !hasClaimed) {
       return (
-        <div className="bg-green-900/20 p-6 rounded-xl border border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
-          <div className="text-center mb-6">
-            <h4 className="text-3xl font-black text-green-400 mb-2">🎉 You won!</h4>
-            <p className="text-green-200">You placed {formatEther(userStake.amount)} MON on the right side.</p>
+        <div className="rounded-2xl border border-amber-400/25 bg-[rgba(245,158,11,0.08)] backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(245,158,11,0.14)] space-y-6">
+          <div
+            className="rounded-2xl px-5 py-4 text-white font-extrabold text-xl bg-[linear-gradient(135deg,rgba(245,158,11,0.70),rgba(217,119,6,0.35),rgba(245,158,11,0.70))] bg-[length:200%_100%] animate-[shimmer_2.6s_linear_infinite]"
+          >
+            🎉 You Won!
           </div>
-          
-          <div className="flex flex-col gap-4">
-            {writeError && <p className="text-red-400 text-sm p-3 bg-red-400/10 rounded-lg">{writeError.shortMessage || writeError.message}</p>}
-            
-            {hash && (
-              <div className="text-sm p-3 bg-blue-400/10 rounded-lg border border-blue-400/20 text-blue-300">
-                <div className="mb-1">{isTxLoading ? '⏳ Claiming...' : '✅ Transferred!'}</div>
-                <a href={`https://testnet.monadexplorer.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadExplorer ↗</a>
-              </div>
-            )}
 
-            {isSuccess ? (
-              <a
-                href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`🏆 I just won a MemeWar on Monad! Staked on "${memeWar.title}" and claimed my MON winnings ⚔️`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-purple-600 text-white font-bold py-4 rounded-xl text-center hover:bg-purple-500 transition-colors"
-                onClick={() => refetch()}
-              >
-                📣 Share your win on Farcaster
-              </a>
-            ) : (
-              <button 
-                onClick={handleClaim}
-                disabled={isPending || isTxLoading}
-                className="w-full bg-green-500 hover:bg-green-400 text-black text-xl font-black py-5 rounded-xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100 flex justify-center items-center"
-              >
-                {isPending || isTxLoading ? <span className="animate-pulse">CLAIMING...</span> : 'CLAIM WINNINGS'}
-              </button>
-            )}
-          </div>
+          <div className="text-white/70 text-sm">Claim your winnings</div>
+          <div className="text-white font-mono text-lg">{formatEther(userStake.amount)} MON</div>
+
+          {hash && (
+            <a
+              href={`https://testnet.monadexplorer.com/tx/${hash}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-xs font-mono text-[#67e8f9] hover:text-white underline truncate"
+            >
+              {hash}
+            </a>
+          )}
+
+          {isSuccess ? (
+            <a
+              href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`🏆 DOMINANCE ESTABLISHED: My ZEUS-X Terminal prediction for "${memeWar.title}" was valid. Winnings claimed. ⚔️`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-full rounded-full py-3 font-bold border border-amber-400/50 text-amber-200 hover:bg-amber-500 hover:text-black transition-all"
+              onClick={() => refetch()}
+            >
+              📣 Share win
+            </a>
+          ) : (
+            <button
+              onClick={handleClaim}
+              disabled={isPending || isTxLoading}
+              className="w-full rounded-full py-4 font-extrabold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[linear-gradient(135deg,#f59e0b,#d97706)] shadow-[0_0_30px_rgba(245,158,11,0.6)] hover:shadow-[0_0_45px_rgba(245,158,11,0.9)] hover:scale-[1.02]"
+            >
+              {(isPending || isTxLoading) && (
+                <span className="mr-3 inline-block w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              )}
+              Claim
+            </button>
+          )}
         </div>
       )
     }
 
-    // STATE E - Loser
+    // STATE E: LOSER
     if (!isWinner) {
       return (
-        <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-xl text-center opacity-80">
-          <div className="text-4xl mb-4 grayscale filter">🤡</div>
-          <h4 className="text-xl font-bold text-neutral-400 mb-2">Better luck next war</h4>
-          <p className="text-neutral-500 text-sm">You staked {formatEther(userStake.amount)} MON on the losing side.</p>
+        <div className="rounded-2xl border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.1)] backdrop-blur-[16px] p-7 text-center shadow-[0_0_25px_rgba(239,68,68,0.12)]">
+          <div className="mx-auto w-14 h-14 rounded-full border border-red-400/30 bg-red-500/10 flex items-center justify-center text-2xl text-red-200">
+            💀
+          </div>
+          <h4 className="mt-4 text-lg font-extrabold text-red-200">Better luck next war</h4>
+          <p className="mt-2 text-sm text-red-200/70">Your stake was on the losing side.</p>
+          <div className="mt-4 text-sm font-mono text-red-200/70">{formatEther(userStake.amount)} MON</div>
         </div>
       )
     }
   }
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-xl text-center">
-      <h4 className="text-xl font-bold text-neutral-400 mb-2">War Ended</h4>
-      <p className="text-neutral-500 text-sm">You didn't participate in this battle.</p>
+    <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(124,58,237,0.10)]">
+      <div className="mx-auto w-12 h-12 rounded-full border border-white/10 bg-black/20 flex items-center justify-center text-white/30">∅</div>
+      <div className="mt-4 text-white/70 font-semibold">No action available</div>
+      <p className="mt-2 text-sm text-white/50">This war is not active or you did not participate.</p>
     </div>
   )
 }
