@@ -18,34 +18,54 @@ export default function AdminPanel() {
 
   const { writeContract, data: hash, isPending, reset } = useWriteContract()
   const { isLoading: isTxLoading, isSuccess } = useWaitForTransactionReceipt({ hash })
-  const [resolvingId, setResolvingId] = useState(null)
+  const [action, setAction] = useState(null) // { type: 'resolve' | 'cancel', id: bigint }
 
-  const handleResolve = (id, side) => {
-    setResolvingId(id)
-    writeContract({
-      address: MEMEWAR_ADDRESS,
-      abi: MEMEWAR_ABI,
-      functionName: 'resolveMemeWar',
-      args: [id, side]
-    }, {
-      onSuccess: () => {
-        toast.success(`Resolving war ${id}...`)
+  const handleTriggerResolution = (id) => {
+    setAction({ type: 'resolve', id })
+    writeContract(
+      {
+        address: MEMEWAR_ADDRESS,
+        abi: MEMEWAR_ABI,
+        functionName: 'resolveByStake',
+        args: [id],
       },
-      onError: (err) => {
-        toast.error(err.shortMessage || 'Failed to resolve')
-        setResolvingId(null)
+      {
+        onSuccess: () => toast.success(`Triggering resolution for war ${id}…`),
+        onError: (err) => {
+          toast.error(err?.shortMessage || err?.message || 'Failed to resolve')
+          setAction(null)
+        },
       }
-    })
+    )
+  }
+
+  const handleCancel = (id) => {
+    setAction({ type: 'cancel', id })
+    writeContract(
+      {
+        address: MEMEWAR_ADDRESS,
+        abi: MEMEWAR_ABI,
+        functionName: 'cancelMemeWar',
+        args: [id],
+      },
+      {
+        onSuccess: () => toast.success(`Cancelling war ${id}…`),
+        onError: (err) => {
+          toast.error(err?.shortMessage || err?.message || 'Failed to cancel')
+          setAction(null)
+        },
+      }
+    )
   }
 
   useEffect(() => {
-    if (isSuccess && resolvingId !== null) {
-      toast.success('War resolved successfully!')
-      setResolvingId(null)
-      reset()
-      refetch()
-    }
-  }, [isSuccess, resolvingId, reset, refetch])
+    if (!isSuccess || !action) return
+
+    toast.success(action.type === 'cancel' ? 'War cancelled successfully!' : 'War resolved successfully!')
+    setAction(null)
+    reset()
+    refetch()
+  }, [isSuccess, action, reset, refetch])
 
   if (!isAdmin) {
     return (
@@ -64,10 +84,14 @@ export default function AdminPanel() {
       <div className="flex justify-between items-center mb-10">
         <div className="flex flex-col">
           <h1 className="text-4xl font-black font-sans uppercase tracking-[0.2em] text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-            Admin Override
+            Admin Monitor
           </h1>
           <div className="text-believe font-mono text-xs mt-1 tracking-widest uppercase animate-pulse">
-            Root_Privileges_Established
+            Resolution_is_trustless
+          </div>
+          <div className="mt-3 max-w-3xl text-xs text-white/60">
+            Resolution is now trustless — any user can resolve wars from the war detail page. This panel is for monitoring only.
+            Admin power remains: cancel active wars.
           </div>
         </div>
         <button 
@@ -112,7 +136,8 @@ export default function AdminPanel() {
                 const sEth = formatEther(war.stakeOnSkeptic || 0n)
                 
                 const truncatedTitle = war.title.length > 40 ? war.title.slice(0, 40) + '...' : war.title
-                const resolvingThis = resolvingId === war.id
+                const resolvingThis = action?.type === 'resolve' && action?.id === war.id
+                const cancellingThis = action?.type === 'cancel' && action?.id === war.id
 
                 return (
                   <tr key={war.id} className="border-b border-neutral-900 group hover:bg-believe/5 transition-all">
@@ -156,25 +181,36 @@ export default function AdminPanel() {
                         resolvingThis ? (
                           <div className="text-believe animate-pulse tracking-widest italic">Rerouting_Assets...</div>
                         ) : (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <button 
-                              onClick={() => handleResolve(war.id, 0)}
+                              onClick={() => handleTriggerResolution(war.id)}
                               disabled={isPending || isTxLoading}
-                              className="bg-believe/20 hover:bg-believe border border-believe text-believe hover:text-black text-[10px] font-black px-4 py-2 uppercase tracking-tighter transition-all"
+                              className="bg-white/5 hover:bg-believe border border-believe/40 text-believe hover:text-black text-[10px] font-black px-4 py-2 uppercase tracking-tighter transition-all"
                             >
-                              FOR_BELIEVE
+                              ⚔️ TRIGGER_RESOLUTION
                             </button>
-                            <button 
-                              onClick={() => handleResolve(war.id, 1)}
-                              disabled={isPending || isTxLoading}
-                              className="bg-skeptic/20 hover:bg-skeptic border border-skeptic text-skeptic hover:text-black text-[10px] font-black px-4 py-2 uppercase tracking-tighter transition-all"
+                            <button
+                              onClick={() => handleCancel(war.id)}
+                              disabled={isPending || isTxLoading || cancellingThis}
+                              className="bg-red-500/10 hover:bg-red-500 border border-red-500/40 text-red-300 hover:text-black text-[10px] font-black px-4 py-2 uppercase tracking-tighter transition-all"
                             >
-                              FOR_SKEPTIC
+                              {cancellingThis ? 'CANCELLING…' : 'CANCEL_WAR'}
                             </button>
                           </div>
                         )
                       ) : (
-                        <div className="text-[10px] text-neutral-600 italic tracking-widest">Waiting_for_Deadline...</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="text-[10px] text-neutral-600 italic tracking-widest">Waiting_for_Deadline...</div>
+                          {isActive && (
+                            <button
+                              onClick={() => handleCancel(war.id)}
+                              disabled={isPending || isTxLoading || cancellingThis}
+                              className="bg-red-500/10 hover:bg-red-500 border border-red-500/40 text-red-300 hover:text-black text-[10px] font-black px-3 py-2 uppercase tracking-tighter transition-all"
+                            >
+                              {cancellingThis ? 'CANCELLING…' : 'CANCEL'}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -185,7 +221,7 @@ export default function AdminPanel() {
         </div>
       </div>
       <div className="mt-6 text-[8px] font-mono text-neutral-600 uppercase tracking-[0.3em] flex items-center gap-2">
-        <span className="animate-pulse">⚠</span> Warning: Resolution is permanent and immutable. Redirect fuel responsibly.
+        <span className="animate-pulse">⚠</span> Note: Resolution is stake-weighted and permissionless. Admin cancel is the only privileged action.
       </div>
     </div>
   )

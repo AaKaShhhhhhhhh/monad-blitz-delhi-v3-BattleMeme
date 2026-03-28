@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import { formatEther } from 'viem'
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { useWarDetail } from '../hooks/useWarDetail.js'
+import { MEMEWAR_ADDRESS, MEMEWAR_ABI } from '../config/contract.js'
 import StakePanel from '../components/StakePanel.jsx'
 import CountdownTimer from '../components/CountdownTimer.jsx'
+import toast from 'react-hot-toast'
 
 function formatAddress(addr) {
   if (!addr) return ''
@@ -62,9 +65,12 @@ function DigitalCountdown({ deadline }) {
 
 export default function WarDetail() {
   const { id } = useParams()
-  const { memeWar, believers, skeptics, userStake, hasClaimed, refetch } = useWarDetail(id)
+  const { memeWar, believers, skeptics, projectedWinner, userStake, hasClaimed, refetch } = useWarDetail(id)
   const [copied, setCopied] = useState(false)
   const isResolved = memeWar?.status === 1
+
+  const { writeContract, data: resolveHash, isPending: isResolvePending, reset: resetResolve } = useWriteContract()
+  const { isLoading: isResolveTxLoading, isSuccess: isResolveTxSuccess } = useWaitForTransactionReceipt({ hash: resolveHash })
 
   if (!memeWar) {
     return <div className="text-center py-20 text-neutral-400">Loading...</div>
@@ -90,6 +96,39 @@ export default function WarDetail() {
 
   const shareText = `⚔️ MemeWar: "${memeWar.title}" — BELIEVE vs SKEPTIC. Stake MON and prove your side!`
   const shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(window.location.href)}`
+
+  const nowSec = Math.floor(Date.now() / 1000)
+  const isActive = memeWar?.status === 0
+  const deadlinePassed = !!memeWar?.deadline && nowSec >= Number(memeWar.deadline)
+  const canResolve = isActive && deadlinePassed
+
+  const handleResolveNow = () => {
+    if (!id) return
+
+    writeContract(
+      {
+        address: MEMEWAR_ADDRESS,
+        abi: MEMEWAR_ABI,
+        functionName: 'resolveByStake',
+        args: [BigInt(id)],
+      },
+      {
+        onSuccess: () => {
+          toast.success('Resolving… Winner determined by stake weight.')
+        },
+        onError: (err) => {
+          toast.error(err?.shortMessage || err?.message || 'Failed to resolve')
+        },
+      }
+    )
+  }
+
+  useEffect(() => {
+    if (!isResolveTxSuccess) return
+    toast.success('War resolved! Winner determined by stake.')
+    resetResolve()
+    refetch()
+  }, [isResolveTxSuccess, resetResolve, refetch])
 
   return (
     <div className="relative pb-10">
@@ -194,6 +233,58 @@ export default function WarDetail() {
               </div>
             </div>
           </div>
+
+          {canResolve && (
+            <div className="mt-8 rounded-2xl border border-[rgba(234,179,8,0.35)] bg-[rgba(234,179,8,0.08)] p-5">
+              <div className="text-sm font-extrabold text-amber-200">
+                ⏰ Deadline has passed — this war is ready to resolve!
+              </div>
+              <div className="mt-1 text-xs text-white/70">
+                Anyone can trigger resolution. The side with more MON staked wins.
+              </div>
+
+              <button
+                onClick={handleResolveNow}
+                disabled={isResolvePending || isResolveTxLoading}
+                className="mt-4 w-full rounded-xl px-4 py-4 font-black text-white border border-[rgba(124,58,237,0.55)] shadow-[0_0_28px_rgba(124,58,237,0.25)] transition-all hover:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(124,58,237,1), rgba(79,70,229,1), rgba(6,182,212,0.65))',
+                }}
+              >
+                {isResolvePending || isResolveTxLoading ? 'Resolving…' : '⚔️ Resolve Now'}
+              </button>
+
+              {resolveHash && (
+                <a
+                  href={`https://testnet.monadvision.com/tx/${resolveHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 block text-xs font-mono text-[#67e8f9] hover:text-white/90"
+                >
+                  View TX → https://testnet.monadvision.com/tx/{resolveHash}
+                </a>
+              )}
+
+              <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="text-[11px] font-semibold text-white/60 tracking-widest uppercase">Live projected winner</div>
+                <div className="mt-2 text-sm font-bold">
+                  {projectedWinner?.isTied ? (
+                    <span className="text-amber-200">⚖️ Currently TIED — if resolved now, everyone gets refunded</span>
+                  ) : projectedWinner?.leader ? (
+                    <span>
+                      <span className={projectedWinner.leader === 'BELIEVE' ? 'text-[#c4b5fd]' : 'text-[#67e8f9]'}>
+                        📊 Leading: {projectedWinner.leader}
+                      </span>
+                      <span className="text-white/60"> by </span>
+                      <span className="text-white">{formatEther(projectedWinner.leadAmount || 0n)} MON</span>
+                    </span>
+                  ) : (
+                    <span className="text-white/50">Loading…</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {isResolved && (
             <div

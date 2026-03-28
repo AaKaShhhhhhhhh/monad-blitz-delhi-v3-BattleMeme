@@ -45,6 +45,7 @@ contract MemeWar {
     event MemeWarCreated(uint256 indexed id, address indexed creator, string title, uint256 deadline);
     event Staked(uint256 indexed memeWarId, address indexed staker, Side side, uint256 amount);
     event MemeWarResolved(uint256 indexed memeWarId, Side winningSide, uint256 prizePool);
+    event MemeWarTied(uint256 indexed memeWarId);
     event WinningsClaimed(uint256 indexed memeWarId, address indexed winner, uint256 amount);
     event MemeWarCancelled(uint256 indexed memeWarId);
 
@@ -118,31 +119,89 @@ contract MemeWar {
     }
 
     /**
-     * @notice Resolves the Meme War by declaring a winner. Only owner.
-     * @param memeWarId The ID of the Meme War.
-     * @param winner The winning side.
+     * @notice Resolves this MemeWar based purely on stake weight.
+     * Callable by ANYONE after the deadline passes — fully trustless.
+     * The side with more MON staked wins. In a tie, everyone is refunded.
+     *
+     * Resolution can be triggered any time after the deadline; if a war goes
+     * unresolved for 7+ days, it is still resolvable and will not get stuck.
      */
-    function resolveMemeWar(uint256 memeWarId, Side winner) external {
-        require(msg.sender == owner, "Only owner");
-        require(memeWarId < memeWarCount, "Invalid ID");
-        require(memeWars[memeWarId].status == Status.ACTIVE, "Not ACTIVE");
-        require(block.timestamp >= memeWars[memeWarId].deadline, "Deadline not passed");
+    function resolveByStake(uint256 memeWarId) external {
+        require(memeWarId < memeWarCount, "War does not exist");
+        MemeWarData storage war = memeWars[memeWarId];
 
-        memeWars[memeWarId].winningSide = winner;
-        memeWars[memeWarId].status = Status.RESOLVED;
+        require(war.status == Status.ACTIVE, "War already resolved");
+        require(block.timestamp >= war.deadline, "Deadline not yet passed");
 
-        uint256 loserPool = (winner == Side.BELIEVE) 
-            ? memeWars[memeWarId].stakeOnSkeptic 
-            : memeWars[memeWarId].stakeOnBelieve;
-
-        uint256 fee = (loserPool * PLATFORM_FEE_BPS) / 10000;
-        
-        if (fee > 0) {
-            (bool success, ) = owner.call{value: fee}("");
-            require(success, "Fee transfer failed");
+        // Timelock/grace-period check (does not restrict callers):
+        // if unresolved for 7+ days, this is a "late" resolution.
+        uint256 graceEnd = war.deadline + 7 days;
+        if (block.timestamp > graceEnd) {
+            // Late resolution path — same stake-weighted rules.
         }
 
-        emit MemeWarResolved(memeWarId, winner, loserPool - fee);
+        if (war.stakeOnBelieve > war.stakeOnSkeptic) {
+            // BELIEVE wins
+            war.winningSide = Side.BELIEVE;
+            war.status = Status.RESOLVED;
+
+            uint256 loserPool = war.stakeOnSkeptic;
+            uint256 fee = (loserPool * PLATFORM_FEE_BPS) / 10000;
+
+            if (fee > 0) {
+                (bool sent,) = owner.call{value: fee}("");
+                require(sent, "Fee transfer failed");
+            }
+
+            emit MemeWarResolved(memeWarId, Side.BELIEVE, loserPool - fee);
+        } else if (war.stakeOnSkeptic > war.stakeOnBelieve) {
+            // SKEPTIC wins
+            war.winningSide = Side.SKEPTIC;
+            war.status = Status.RESOLVED;
+
+            uint256 loserPool = war.stakeOnBelieve;
+            uint256 fee = (loserPool * PLATFORM_FEE_BPS) / 10000;
+
+            if (fee > 0) {
+                (bool sent,) = owner.call{value: fee}("");
+                require(sent, "Fee transfer failed");
+            }
+
+            emit MemeWarResolved(memeWarId, Side.SKEPTIC, loserPool - fee);
+        } else {
+            // TIE — refund everyone, no fee
+            war.status = Status.CANCELLED;
+            _refundAll(memeWarId);
+            emit MemeWarTied(memeWarId);
+        }
+    }
+
+    // Internal helper to refund all stakers on both sides
+    function _refundAll(uint256 memeWarId) internal {
+        address[] storage bList = believers[memeWarId];
+        address[] storage sList = skeptics[memeWarId];
+
+        uint256 bLen = bList.length;
+        for (uint256 i = 0; i < bLen; i++) {
+            address staker = bList[i];
+            uint256 amount = stakes[memeWarId][staker].amount;
+            if (amount > 0) {
+                stakes[memeWarId][staker].amount = 0;
+                (bool sent,) = staker.call{value: amount}("");
+                require(sent, "Refund failed");
+            }
+        }
+
+        uint256 sLen = sList.length;
+        for (uint256 i = 0; i < sLen; i++) {
+            address staker = sList[i];
+            uint256 amount = stakes[memeWarId][staker].amount;
+            if (amount > 0) {
+                stakes[memeWarId][staker].amount = 0;
+                (bool sent,) = staker.call{value: amount}("");
+                require(sent, "Refund failed");
+            }
+        }
     }
 
     /**
@@ -237,6 +296,35 @@ contract MemeWar {
      */
     function getStakeInfo(uint256 memeWarId, address user) external view returns (StakeInfo memory) {
         return stakes[memeWarId][user];
+    }
+
+    // Lets anyone check who would win RIGHT NOW based on current stakes
+    function getProjectedWinner(uint256 memeWarId) external view returns (
+        string memory leader,
+        uint256 believeTotal,
+        uint256 skepticTotal,
+        uint256 leadAmount,
+        bool isTied
+    ) {
+        require(memeWarId < memeWarCount, "War does not exist");
+        MemeWarData storage war = memeWars[memeWarId];
+
+        believeTotal = war.stakeOnBelieve;
+        skepticTotal = war.stakeOnSkeptic;
+
+        if (believeTotal > skepticTotal) {
+            leader = "BELIEVE";
+            leadAmount = believeTotal - skepticTotal;
+            isTied = false;
+        } else if (skepticTotal > believeTotal) {
+            leader = "SKEPTIC";
+            leadAmount = skepticTotal - believeTotal;
+            isTied = false;
+        } else {
+            leader = "TIE";
+            leadAmount = 0;
+            isTied = true;
+        }
     }
 
     /**
