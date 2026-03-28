@@ -24,7 +24,12 @@ export default function MemeWarCard({ id, title, stakeOnBelieve, stakeOnSkeptic,
           </span>
         )}
         {isCancelled && <span className="bg-red-500/20 text-red-400 px-2 py-1 text-xs rounded-md font-bold uppercase">Cancelled</span>}
-        {isActive && <span className="bg-green-500/20 text-green-400 px-2 py-1 text-xs rounded-md font-bold uppercase">Active</span>}
+        {isActive && (
+          <span className="bg-green-500/20 text-green-400 px-2 py-1 text-xs rounded-md font-bold uppercase flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+            Active
+          </span>
+        )}
       </div>
 
       <div>

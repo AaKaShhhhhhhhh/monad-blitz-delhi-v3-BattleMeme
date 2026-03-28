@@ -96,7 +96,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
           {hash && (
             <div className="text-sm p-3 bg-blue-400/10 rounded-lg border border-blue-400/20 text-blue-300">
               <div className="mb-1">{isTxLoading ? '⏳ Waiting for confirmation...' : '✅ Stake confirmed!'}</div>
-              <a href={`https://testnet.monadvision.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadVision ↗</a>
+              <a href={`https://testnet.monadexplorer.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadExplorer ↗</a>
             </div>
           )}
 
@@ -184,7 +184,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
             {hash && (
               <div className="text-sm p-3 bg-blue-400/10 rounded-lg border border-blue-400/20 text-blue-300">
                 <div className="mb-1">{isTxLoading ? '⏳ Claiming...' : '✅ Transferred!'}</div>
-                <a href={`https://testnet.monadvision.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadVision ↗</a>
+                <a href={`https://testnet.monadexplorer.com/tx/${hash}`} target="_blank" rel="noreferrer" className="underline font-mono text-xs">View on MonadExplorer ↗</a>
               </div>
             )}
 

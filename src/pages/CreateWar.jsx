@@ -118,18 +118,22 @@ export default function CreateWar() {
           <div className="p-3 bg-blue-400/10 rounded-lg border border-blue-400/20 text-sm">
             <p className="text-blue-400 mb-1">{isWaiting ? '⏳ Waiting for confirmation...' : '✅ Transaction confirmed!'}</p>
             <a 
-              href={`https://testnet.monadvision.com/tx/${hash}`} 
+              href={`https://testnet.monadexplorer.com/tx/${hash}`} 
               target="_blank" 
               rel="noreferrer"
               className="text-blue-300 hover:underline"
             >
-              View on MonadVision ↗
+              View on MonadExplorer ↗
             </a>
           </div>
         )}
 
         {createdWarId ? (
           <div className="flex flex-col gap-4 mt-2">
+            <div className="bg-green-500/10 text-green-400 p-4 rounded-lg text-center border border-green-500/20">
+              <p className="font-bold mb-1">Success!</p>
+              <p className="text-sm font-mono text-white/80 select-all">Share your war: {window.location.host}/war/{createdWarId}</p>
+            </div>
             <a 
               href={`/war/${createdWarId}`}
               className="bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-lg flex justify-center items-center text-center transition-colors"
@@ -141,9 +145,9 @@ export default function CreateWar() {
               href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`⚔️ I just started a MemeWar: "${title}" — pick a side and stake MON!`)}&embeds[]=${encodeURIComponent(`${window.location.origin}/war/${createdWarId}`)}`}
               target="_blank"
               rel="noreferrer"
-              className="border-2 border-purple-500 hover:bg-purple-500/20 text-white font-bold py-3 rounded-lg text-center transition-colors"
+              className="border-2 border-purple-500 hover:bg-purple-500/20 text-white font-bold py-3 rounded-lg text-center transition-colors flex justify-center items-center gap-2"
             >
-              📣 Share on Farcaster
+              <span>📣</span> Share on Farcaster
             </a>
           </div>
         ) : (

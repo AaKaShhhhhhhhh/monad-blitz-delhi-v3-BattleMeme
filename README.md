@@ -1,11 +1,37 @@
-# Monad Blitz Delhi Submission Process
+# MemeWar ⚔️
+MemeWar is a decentralized debate protocol on the Monad network where users declare controversial memes and back them with their cryptocurrency to see who's right. It leverages on-chain liquidity rules to incentivize truth-telling and penalize unproven skepticism.
 
-1. Visit the `monad-blitz-delhi` repo (link [here](https://github.com/monad-developers/monad-blitz-delhi)) and fork it.
+## Setup Instructions
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Set up your `.env`:
+   ```bash
+   cp .env.example .env
+   # Add your METAMASK_PRIVATE_KEY inside DEPLOYER_PRIVATE_KEY
+   # Set MEMEWAR_ADDRESS=0x_YOUR_CONTRACT_ADDRESS after deployment
+   ```
+3. Deploy the smart contracts to Monad testnet:
+   ```bash
+   cd memewar-contracts
+   forge build
+   forge create src/MemeWar.sol:MemeWar --rpc-url https://testnet-rpc.monad.xyz --private-key $DEPLOYER_PRIVATE_KEY
+   ```
+4. Update `src/config/contract.js` and `.env` with your new deployed contract address.
+5. Generate the demo data:
+   ```bash
+   node scripts/seed.js
+   ```
+6. Start the frontend:
+   ```bash
+   npm run dev
+   ```
 
-<img width="1512" alt="Screenshot 2025-06-05 at 1 47 48 PM" src="https://github.com/user-attachments/assets/a837398a-cca4-42cf-b6ff-709b567c9aa9" />
+## 5-Minute Pitch Walkthrough
 
-2. Give it your project name, a one-liner description, make sure you are forking `main` branch and click `Create Fork`.
-
-<img width="1512" alt="Screenshot 2025-06-05 at 1 48 10 PM" src="https://github.com/user-attachments/assets/62ea369a-de81-4460-8136-e3f9320abfb8" />
-
-3. In your fork you can make all the changes you want, add code of your project, create branches, add information to `README.md`, you can change anything and everything.
+1. **Show home page with 3 active wars**: Navigate to the homepage where you can see live Monad liquidity flowing dynamically based on the current volume of beliefs vs skepticism on 3 active debate topics seeded by our background Node script.
+2. **Interact / Stake on BELIEVE**: Click a war, showing off the dynamic UI and connect a Metamask testnet account. Click "💜 BELIEVE" and enter `0.005` MON. Show the hot-toast real-time confirmation.
+3. **Switch wallet, stake on SKEPTIC**: Use the Metamask wallet switcher. Reconnect to the dApp with the second test account. Stake `0.003` MON on "🔵 SKEPTIC" and watch the green Monad percentage bar actively transition logic on the front-end!
+4. **Resolve via Admin Panel**: Connect the `deployer` address (owner mode enabled). Navigate to the secret `/admin` route. Wait for the war's timeout (or pick an expired test war) and click the "✅ BELIEVE wins" button.
+5. **Switch backend wallet & Claim**: Reloop back to the first wallet who successfully voted BELIEVE. The dashboard updates from a live form to a winner's circle. Show the "🎉 Claim Winnings!" UI to finalize the payout demonstration. Share on Farcaster to close the demo out seamlessly!
