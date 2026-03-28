@@ -32,7 +32,7 @@ contract MemeWar {
     /// --- STATE VARIABLES ---
     address public owner;
     uint256 public memeWarCount;
-    uint256 public constant MAX_STAKE = 0.01 ether;
+    uint256 public constant MAX_STAKE = 5 ether;
     uint256 public constant PLATFORM_FEE_BPS = 500; // 5%
 
     mapping(uint256 => MemeWarData) public memeWars;
@@ -94,10 +94,10 @@ contract MemeWar {
      * @param side The side to stake on (BELIEVE or SKEPTIC).
      */
     function stakeOnSide(uint256 memeWarId, Side side) external payable {
+        require(msg.value > 0 && msg.value <= MAX_STAKE, "Invalid stake amount");
         require(memeWarId < memeWarCount, "Invalid ID");
         require(memeWars[memeWarId].status == Status.ACTIVE, "Not ACTIVE");
         require(block.timestamp < memeWars[memeWarId].deadline, "Deadline passed");
-        require(msg.value > 0 && msg.value <= MAX_STAKE, "Invalid stake amount");
         require(!stakes[memeWarId][msg.sender].hasStaked, "Already staked");
 
         stakes[memeWarId][msg.sender] = StakeInfo({

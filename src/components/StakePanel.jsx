@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import toast from 'react-hot-toast'
 import { MEMEWAR_ADDRESS, MEMEWAR_ABI } from '../config/contract.js'
 
 export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, refetch }) {
   const { isConnected } = useAccount()
   const [side, setSide] = useState(0) // 0 = BELIEVE, 1 = SKEPTIC
   const [amountStr, setAmountStr] = useState('0.001')
+
+  const maxStakeWei = parseEther('5')
 
   // Stake tx tracking
   const {
@@ -42,15 +45,40 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   const isResolved = memeWar?.status === 1
 
   const handleStake = async () => {
-    if (!amountStr || isNaN(amountStr)) return
+    if (!amountStr) {
+      toast.error('Enter an amount')
+      return
+    }
+
+    let amountWei
+    try {
+      amountWei = parseEther(amountStr)
+    } catch {
+      toast.error('Invalid amount')
+      return
+    }
+
+    if (amountWei <= 0n) {
+      toast.error('Stake must be greater than 0')
+      return
+    }
+
+    if (amountWei > maxStakeWei) {
+      toast.error('Max stake is 5 MON for this contract')
+      return
+    }
+
     writeStake({
       address: MEMEWAR_ADDRESS,
       abi: MEMEWAR_ABI,
       functionName: 'stakeOnSide',
       args: [memeWarId, side],
-      value: parseEther(amountStr)
+      value: amountWei
     }, {
-      onSuccess: () => setTimeout(refetch, 3000)
+      onSuccess: () => setTimeout(refetch, 3000),
+      onError: (err) => {
+        toast.error(err?.shortMessage || err?.message || 'Stake failed')
+      }
     })
   }
 
@@ -60,6 +88,10 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
       abi: MEMEWAR_ABI,
       functionName: 'claimWinnings',
       args: [memeWarId]
+    }, {
+      onError: (err) => {
+        toast.error(err?.shortMessage || err?.message || 'Claim failed')
+      }
     })
   }
 
@@ -92,11 +124,19 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
       try {
         return parseEther(amountStr || '0')
       } catch {
-        return 0n
+        return null
       }
     })()
+
+    const amountError = (() => {
+      if (stakeAmountWei === null) return 'Invalid amount'
+      if (stakeAmountWei <= 0n) return 'Stake must be greater than 0'
+      if (stakeAmountWei > maxStakeWei) return 'Max stake is 5 MON'
+      return null
+    })()
+
     const stakeGasWei = receiptGasCostWei(stakeReceipt)
-    const stakeTotalWei = stakeGasWei !== null ? stakeAmountWei + stakeGasWei : null
+    const stakeTotalWei = (stakeGasWei !== null && stakeAmountWei !== null) ? stakeAmountWei + stakeGasWei : null
     
     return (
       <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-6 sm:p-7 shadow-[0_0_35px_rgba(124,58,237,0.10)] space-y-6">
@@ -136,17 +176,32 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
         <div>
           <div className="flex items-end justify-between mb-2">
             <label className="text-sm font-bold text-white/80">Amount (MON)</label>
-            <span className="text-xs text-white/40">MAX: 0.01 MON</span>
+            <span className="text-xs text-white/40">MAX: 5 MON</span>
           </div>
           <input
             type="number"
             min="0.001"
-            max="0.01"
+            max="5"
             step="0.001"
             value={amountStr}
             onChange={e => setAmountStr(e.target.value)}
+            onBlur={() => {
+              // Clamp to contract max on blur to reduce accidental reverts.
+              try {
+                const v = parseEther(amountStr || '0')
+                if (v > maxStakeWei) setAmountStr('5')
+              } catch {
+                // ignore
+              }
+            }}
             className="w-full rounded-xl px-5 py-4 bg-[rgba(0,0,0,0.4)] border border-white/10 text-white text-2xl font-mono outline-none transition-all focus:border-[#7c3aed] focus:shadow-[0_0_15px_rgba(124,58,237,0.4)]"
           />
+
+          {amountError && (
+            <div className="mt-2 text-xs font-semibold text-red-200/90">
+              {amountError}
+            </div>
+          )}
         </div>
 
         {stakeWriteError && (
@@ -164,7 +219,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
               <span className="text-xs font-mono text-white/40">{sideName}</span>
             </div>
             <a
-              href={`https://testnet.monadexplorer.com/tx/${stakeTxHash}`}
+              href={`https://testnet.monadvision.com/tx/${stakeTxHash}`}
               target="_blank"
               rel="noreferrer"
               className="mt-2 block text-xs font-mono text-[#67e8f9] hover:text-white underline truncate"
@@ -176,7 +231,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
               <div className="mt-3 rounded-lg border border-white/10 bg-black/30 p-3">
                 <div className="text-[11px] font-semibold text-white/60 tracking-widest uppercase">Tx impact</div>
                 <div className="mt-1 text-xs font-mono text-white/70">
-                  Stake: <span className="text-white">-{Number(formatEther(stakeAmountWei)).toFixed(4)} MON</span>
+                  Stake: <span className="text-white">-{stakeAmountWei === null ? '—' : `${Number(formatEther(stakeAmountWei)).toFixed(4)} MON`}</span>
                 </div>
                 <div className="mt-1 text-xs font-mono text-white/70">
                   Gas: <span className="text-white">{stakeGasWei === null ? '—' : `-${Number(formatEther(stakeGasWei)).toFixed(6)} MON`}</span>
@@ -208,14 +263,14 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
         ) : (
           <button
             onClick={handleStake}
-            disabled={isStakePending || isStakeConfirming}
+            disabled={Boolean(amountError) || isStakePending || isStakeConfirming}
             className={[
               'w-full rounded-full py-4 font-extrabold text-white transition-all flex items-center justify-center',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               side === 0
                 ? 'bg-[linear-gradient(135deg,#7c3aed,#4f46e5)] shadow-[0_0_30px_rgba(124,58,237,0.6)] hover:shadow-[0_0_45px_rgba(124,58,237,0.9)]'
                 : 'bg-[linear-gradient(135deg,#06b6d4,#22d3ee)] shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)]',
-              !(isStakePending || isStakeConfirming) ? 'hover:scale-[1.02]' : '',
+              !(amountError || isStakePending || isStakeConfirming) ? 'hover:scale-[1.02]' : '',
             ].join(' ')}
           >
             {(isStakePending || isStakeConfirming) && (
