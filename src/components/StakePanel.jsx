@@ -16,7 +16,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     isPending: isStakePending,
     error: stakeWriteError,
   } = useWriteContract()
-  const { isLoading: isStakeConfirming, isSuccess: isStakeConfirmed } = useWaitForTransactionReceipt({ hash: stakeTxHash })
+  const { data: stakeReceipt, isLoading: isStakeConfirming, isSuccess: isStakeConfirmed } = useWaitForTransactionReceipt({ hash: stakeTxHash })
 
   // Claim tx tracking
   const {
@@ -25,7 +25,18 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     isPending: isClaimPending,
     error: claimWriteError,
   } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: claimTxHash })
+  const { data: claimReceipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: claimTxHash })
+
+  const receiptGasCostWei = (receipt) => {
+    if (!receipt?.gasUsed) return null
+    const gasPrice = receipt.effectiveGasPrice ?? receipt.gasPrice
+    if (!gasPrice) return null
+    try {
+      return receipt.gasUsed * gasPrice
+    } catch {
+      return null
+    }
+  }
 
   const isActive = memeWar?.status === 0
   const isResolved = memeWar?.status === 1
@@ -77,6 +88,15 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   // STATE C: ACTIVE, NOT STAKED
   if (isActive && !userStake?.hasStaked) {
     const sideName = side === 0 ? 'BELIEVE' : 'SKEPTIC'
+    const stakeAmountWei = (() => {
+      try {
+        return parseEther(amountStr || '0')
+      } catch {
+        return 0n
+      }
+    })()
+    const stakeGasWei = receiptGasCostWei(stakeReceipt)
+    const stakeTotalWei = stakeGasWei !== null ? stakeAmountWei + stakeGasWei : null
     
     return (
       <div className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-[16px] p-6 sm:p-7 shadow-[0_0_35px_rgba(124,58,237,0.10)] space-y-6">
@@ -151,6 +171,21 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
             >
               {stakeTxHash}
             </a>
+
+            {isStakeConfirmed && (
+              <div className="mt-3 rounded-lg border border-white/10 bg-black/30 p-3">
+                <div className="text-[11px] font-semibold text-white/60 tracking-widest uppercase">Tx impact</div>
+                <div className="mt-1 text-xs font-mono text-white/70">
+                  Stake: <span className="text-white">-{Number(formatEther(stakeAmountWei)).toFixed(4)} MON</span>
+                </div>
+                <div className="mt-1 text-xs font-mono text-white/70">
+                  Gas: <span className="text-white">{stakeGasWei === null ? '—' : `-${Number(formatEther(stakeGasWei)).toFixed(6)} MON`}</span>
+                </div>
+                <div className="mt-1 text-xs font-mono text-white/70">
+                  Net: <span className="text-white">{stakeTotalWei === null ? '—' : `-${Number(formatEther(stakeTotalWei)).toFixed(6)} MON`}</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -253,6 +288,9 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
         ? (userStakeAmount + (userStakeAmount * remainingLoserPool) / totalWinnerStake)
         : userStakeAmount
       const estimatedDisplay = Number(formatEther(estimatedWinnings)).toFixed(4)
+      const projectedProfitWei = estimatedWinnings > userStakeAmount ? (estimatedWinnings - userStakeAmount) : 0n
+      const claimGasWei = receiptGasCostWei(claimReceipt)
+      const claimNetWei = claimGasWei !== null ? (estimatedWinnings - claimGasWei) : null
 
       return (
         <div className="rounded-2xl border border-amber-400/25 bg-[rgba(245,158,11,0.08)] backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(245,158,11,0.14)] space-y-6">
@@ -264,6 +302,9 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
 
           <div className="text-white/70 text-sm">Claim your winnings</div>
           <div className="text-white font-mono text-lg">Estimated payout: {estimatedDisplay} MON</div>
+          <div className="text-xs text-white/60">
+            Projected profit: <span className="font-mono text-white">{Number(formatEther(projectedProfitWei)).toFixed(4)} MON</span>
+          </div>
 
           {claimWriteError && (
             <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-200 text-sm">
@@ -274,6 +315,21 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
           {isConfirmed && (
             <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-200 text-sm font-bold">
               ✅ MON sent to your wallet!
+            </div>
+          )}
+
+          {isConfirmed && (
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-left">
+              <div className="text-[11px] font-semibold text-white/60 tracking-widest uppercase">Tx impact</div>
+              <div className="mt-2 text-xs font-mono text-white/70">
+                Received: <span className="text-white">+{estimatedDisplay} MON</span>
+              </div>
+              <div className="mt-1 text-xs font-mono text-white/70">
+                Gas: <span className="text-white">{claimGasWei === null ? '—' : `-${Number(formatEther(claimGasWei)).toFixed(6)} MON`}</span>
+              </div>
+              <div className="mt-1 text-xs font-mono text-white/70">
+                Net: <span className="text-white">{claimNetWei === null ? '—' : `+${Number(formatEther(claimNetWei)).toFixed(6)} MON`}</span>
+              </div>
             </div>
           )}
 
