@@ -49,7 +49,8 @@ export function useWarDetail(memeWarId) {
     contracts,
     query: {
       enabled: idValue !== undefined,
-      refetchInterval: 5000
+      refetchInterval: 15_000,
+      refetchIntervalInBackground: false,
     }
   })
 

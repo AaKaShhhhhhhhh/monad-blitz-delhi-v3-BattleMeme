@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import toast from 'react-hot-toast'
@@ -10,7 +10,23 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   const [side, setSide] = useState(0) // 0 = BELIEVE, 1 = SKEPTIC
   const [amountStr, setAmountStr] = useState('0.001')
 
-  const maxStakeWei = parseEther('5')
+  const fallbackMaxStakeWei = parseEther('0.01')
+  const { data: onchainMaxStakeWei } = useReadContract({
+    address: MEMEWAR_ADDRESS,
+    abi: MEMEWAR_ABI,
+    functionName: 'MAX_STAKE',
+    query: {
+      staleTime: 60_000,
+    },
+  })
+  const maxStakeWei = onchainMaxStakeWei ?? fallbackMaxStakeWei
+  const maxStakeDisplay = (() => {
+    try {
+      return formatEther(maxStakeWei)
+    } catch {
+      return '0.01'
+    }
+  })()
 
   // Stake tx tracking
   const {
@@ -41,6 +57,15 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     }
   }
 
+  const friendlyTxError = (err) => {
+    const code = err?.cause?.code ?? err?.code
+    if (code === 4001) return 'Transaction rejected in wallet'
+
+    const msg = err?.shortMessage || err?.message || ''
+    if (typeof msg === 'string' && msg.includes('429')) return 'RPC rate-limited (429). Try again in a minute or change RPC.'
+    return msg || 'Transaction failed'
+  }
+
   const isActive = memeWar?.status === 0
   const isResolved = memeWar?.status === 1
 
@@ -64,7 +89,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     }
 
     if (amountWei > maxStakeWei) {
-      toast.error('Max stake is 5 MON for this contract')
+      toast.error(`Max stake is ${maxStakeDisplay} MON for this contract`)
       return
     }
 
@@ -77,7 +102,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     }, {
       onSuccess: () => setTimeout(refetch, 3000),
       onError: (err) => {
-        toast.error(err?.shortMessage || err?.message || 'Stake failed')
+        toast.error(friendlyTxError(err))
       }
     })
   }
@@ -90,7 +115,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
       args: [memeWarId]
     }, {
       onError: (err) => {
-        toast.error(err?.shortMessage || err?.message || 'Claim failed')
+        toast.error(friendlyTxError(err))
       }
     })
   }
@@ -131,7 +156,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
     const amountError = (() => {
       if (stakeAmountWei === null) return 'Invalid amount'
       if (stakeAmountWei <= 0n) return 'Stake must be greater than 0'
-      if (stakeAmountWei > maxStakeWei) return 'Max stake is 5 MON'
+      if (stakeAmountWei > maxStakeWei) return `Max stake is ${maxStakeDisplay} MON`
       return null
     })()
 
@@ -176,12 +201,12 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
         <div>
           <div className="flex items-end justify-between mb-2">
             <label className="text-sm font-bold text-white/80">Amount (MON)</label>
-            <span className="text-xs text-white/40">MAX: 5 MON</span>
+            <span className="text-xs text-white/40">MAX: {maxStakeDisplay} MON</span>
           </div>
           <input
             type="number"
             min="0.001"
-            max="5"
+            max={maxStakeDisplay}
             step="0.001"
             value={amountStr}
             onChange={e => setAmountStr(e.target.value)}
@@ -189,7 +214,7 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
               // Clamp to contract max on blur to reduce accidental reverts.
               try {
                 const v = parseEther(amountStr || '0')
-                if (v > maxStakeWei) setAmountStr('5')
+                if (v > maxStakeWei) setAmountStr(maxStakeDisplay)
               } catch {
                 // ignore
               }
