@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256, toBytes, decodeEventLog } from 'viem'
+import toast from 'react-hot-toast'
 import { MEMEWAR_ADDRESS, MEMEWAR_ABI } from '../config/contract.js'
 
 const SUGGESTIONS = [
@@ -12,7 +13,8 @@ const SUGGESTIONS = [
 
 export default function CreateWar() {
   const [title, setTitle] = useState('')
-  const [duration, setDuration] = useState('3600')
+  const [durationValue, setDurationValue] = useState('1')
+  const [durationUnit, setDurationUnit] = useState('3600')
   const [createdWarId, setCreatedWarId] = useState(null)
 
   const { writeContract, data: hash, isPending, error: writeError } = useWriteContract()
@@ -22,13 +24,19 @@ export default function CreateWar() {
     e.preventDefault()
     if (!title || title.length > 100) return
     
+    const durationSeconds = Number(durationValue) * Number(durationUnit)
+    if (isNaN(durationSeconds) || durationSeconds < 60) {
+      toast.error("Duration must be at least 1 minute")
+      return
+    }
+
     const memeHash = keccak256(toBytes(title))
     
     writeContract({
       address: MEMEWAR_ADDRESS,
       abi: MEMEWAR_ABI,
       functionName: 'createMemeWar',
-      args: [title, memeHash, BigInt(duration)]
+      args: [title, memeHash, BigInt(durationSeconds)]
     })
   }
 
@@ -96,16 +104,25 @@ export default function CreateWar() {
         </div>
 
         <div>
-          <label className="block mb-2 font-medium">Duration</label>
-          <select 
-            value={duration}
-            onChange={e => setDuration(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-believe transition-colors"
-          >
-            <option value="3600">1 Hour</option>
-            <option value="21600">6 Hours</option>
-            <option value="86400">1 Day</option>
-          </select>
+          <label className="block mb-2 font-medium">Custom Duration</label>
+          <div className="flex gap-2">
+            <input 
+              type="number"
+              min="1"
+              value={durationValue}
+              onChange={e => setDurationValue(e.target.value)}
+              className="w-1/2 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-believe transition-colors"
+            />
+            <select 
+              value={durationUnit}
+              onChange={e => setDurationUnit(e.target.value)}
+              className="w-1/2 bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-3 focus:outline-none focus:border-believe transition-colors"
+            >
+              <option value="60">Minutes</option>
+              <option value="3600">Hours</option>
+              <option value="86400">Days</option>
+            </select>
+          </div>
         </div>
 
         <div className="text-sm text-neutral-400 italic">
