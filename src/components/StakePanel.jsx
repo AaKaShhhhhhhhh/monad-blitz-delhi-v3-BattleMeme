@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
@@ -9,15 +9,30 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   const [side, setSide] = useState(0) // 0 = BELIEVE, 1 = SKEPTIC
   const [amountStr, setAmountStr] = useState('0.001')
 
-  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract()
-  const { isLoading: isTxLoading, isSuccess } = useWaitForTransactionReceipt({ hash })
+  // Stake tx tracking
+  const {
+    writeContract: writeStake,
+    data: stakeTxHash,
+    isPending: isStakePending,
+    error: stakeWriteError,
+  } = useWriteContract()
+  const { isLoading: isStakeConfirming, isSuccess: isStakeConfirmed } = useWaitForTransactionReceipt({ hash: stakeTxHash })
+
+  // Claim tx tracking
+  const {
+    writeContract: writeClaim,
+    data: claimTxHash,
+    isPending: isClaimPending,
+    error: claimWriteError,
+  } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: claimTxHash })
 
   const isActive = memeWar?.status === 0
   const isResolved = memeWar?.status === 1
 
   const handleStake = async () => {
     if (!amountStr || isNaN(amountStr)) return
-    writeContract({
+    writeStake({
       address: MEMEWAR_ADDRESS,
       abi: MEMEWAR_ABI,
       functionName: 'stakeOnSide',
@@ -29,15 +44,19 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
   }
 
   const handleClaim = async () => {
-    writeContract({
+    writeClaim({
       address: MEMEWAR_ADDRESS,
       abi: MEMEWAR_ABI,
       functionName: 'claimWinnings',
       args: [memeWarId]
-    }, {
-      onSuccess: () => setTimeout(refetch, 3000)
     })
   }
+
+  useEffect(() => {
+    if (isConfirmed) {
+      refetch()
+    }
+  }, [isConfirmed, refetch])
 
   // STATE A: NOT CONNECTED
   if (!isConnected) {
@@ -110,32 +129,32 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
           />
         </div>
 
-        {writeError && (
+        {stakeWriteError && (
           <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-200 text-sm">
-            {writeError.shortMessage || writeError.message}
+            {stakeWriteError.shortMessage || stakeWriteError.message}
           </div>
         )}
 
-        {hash && (
+        {stakeTxHash && (
           <div className="p-4 rounded-xl border border-white/10 bg-black/20">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white/70">
-                {isTxLoading ? '⏱ Confirming…' : '✅ Confirmed'}
+                {isStakeConfirming ? '⏱ Confirming…' : '✅ Confirmed'}
               </span>
               <span className="text-xs font-mono text-white/40">{sideName}</span>
             </div>
             <a
-              href={`https://testnet.monadexplorer.com/tx/${hash}`}
+              href={`https://testnet.monadexplorer.com/tx/${stakeTxHash}`}
               target="_blank"
               rel="noreferrer"
               className="mt-2 block text-xs font-mono text-[#67e8f9] hover:text-white underline truncate"
             >
-              {hash}
+              {stakeTxHash}
             </a>
           </div>
         )}
 
-        {isSuccess ? (
+        {isStakeConfirmed ? (
           <div className="space-y-4 animate-in fade-in zoom-in-95">
             <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5 text-center">
               <div className="text-emerald-200 font-extrabold">Staked</div>
@@ -154,20 +173,20 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
         ) : (
           <button
             onClick={handleStake}
-            disabled={isPending || isTxLoading}
+            disabled={isStakePending || isStakeConfirming}
             className={[
               'w-full rounded-full py-4 font-extrabold text-white transition-all flex items-center justify-center',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               side === 0
                 ? 'bg-[linear-gradient(135deg,#7c3aed,#4f46e5)] shadow-[0_0_30px_rgba(124,58,237,0.6)] hover:shadow-[0_0_45px_rgba(124,58,237,0.9)]'
                 : 'bg-[linear-gradient(135deg,#06b6d4,#22d3ee)] shadow-[0_0_30px_rgba(6,182,212,0.6)] hover:shadow-[0_0_45px_rgba(6,182,212,0.9)]',
-              !(isPending || isTxLoading) ? 'hover:scale-[1.02]' : '',
+              !(isStakePending || isStakeConfirming) ? 'hover:scale-[1.02]' : '',
             ].join(' ')}
           >
-            {(isPending || isTxLoading) && (
+            {(isStakePending || isStakeConfirming) && (
               <span className="mr-3 inline-block w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
             )}
-            {isPending || isTxLoading ? 'Staking…' : 'Stake'}
+            {isStakePending || isStakeConfirming ? 'Staking…' : 'Stake'}
           </button>
         )}
       </div>
@@ -225,6 +244,16 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
 
     // STATE D: WINNER, NOT CLAIMED
     if (isWinner && !hasClaimed) {
+      const userStakeAmount = userStake?.amount ?? 0n
+      const totalWinnerStake = memeWar.winningSide === 0 ? (memeWar.stakeOnBelieve ?? 0n) : (memeWar.stakeOnSkeptic ?? 0n)
+      const loserPool = memeWar.winningSide === 0 ? (memeWar.stakeOnSkeptic ?? 0n) : (memeWar.stakeOnBelieve ?? 0n)
+      const fee = (loserPool * 500n) / 10000n
+      const remainingLoserPool = loserPool - fee
+      const estimatedWinnings = totalWinnerStake > 0n
+        ? (userStakeAmount + (userStakeAmount * remainingLoserPool) / totalWinnerStake)
+        : userStakeAmount
+      const estimatedDisplay = Number(formatEther(estimatedWinnings)).toFixed(4)
+
       return (
         <div className="rounded-2xl border border-amber-400/25 bg-[rgba(245,158,11,0.08)] backdrop-blur-[16px] p-7 text-center shadow-[0_0_35px_rgba(245,158,11,0.14)] space-y-6">
           <div
@@ -234,20 +263,32 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
           </div>
 
           <div className="text-white/70 text-sm">Claim your winnings</div>
-          <div className="text-white font-mono text-lg">{formatEther(userStake.amount)} MON</div>
+          <div className="text-white font-mono text-lg">Estimated payout: {estimatedDisplay} MON</div>
 
-          {hash && (
+          {claimWriteError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-200 text-sm">
+              {claimWriteError.shortMessage || claimWriteError.message}
+            </div>
+          )}
+
+          {isConfirmed && (
+            <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-200 text-sm font-bold">
+              ✅ MON sent to your wallet!
+            </div>
+          )}
+
+          {claimTxHash && (
             <a
-              href={`https://testnet.monadexplorer.com/tx/${hash}`}
+              href={`https://testnet.monadvision.com/tx/${claimTxHash}`}
               target="_blank"
               rel="noreferrer"
               className="block text-xs font-mono text-[#67e8f9] hover:text-white underline truncate"
             >
-              {hash}
+              https://testnet.monadvision.com/tx/{claimTxHash}
             </a>
           )}
 
-          {isSuccess ? (
+          {isConfirmed ? (
             <a
               href={`https://warpcast.com/~/compose?text=${encodeURIComponent(`🏆 DOMINANCE ESTABLISHED: My ZEUS-X Terminal prediction for "${memeWar.title}" was valid. Winnings claimed. ⚔️`)}&embeds[]=${encodeURIComponent(window.location.href)}`}
               target="_blank"
@@ -260,13 +301,13 @@ export default function StakePanel({ memeWarId, userStake, memeWar, hasClaimed, 
           ) : (
             <button
               onClick={handleClaim}
-              disabled={isPending || isTxLoading}
+              disabled={isClaimPending || isConfirming}
               className="w-full rounded-full py-4 font-extrabold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[linear-gradient(135deg,#f59e0b,#d97706)] shadow-[0_0_30px_rgba(245,158,11,0.6)] hover:shadow-[0_0_45px_rgba(245,158,11,0.9)] hover:scale-[1.02]"
             >
-              {(isPending || isTxLoading) && (
+              {(isClaimPending || isConfirming) && (
                 <span className="mr-3 inline-block w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               )}
-              Claim
+              {isConfirming ? 'Claiming…' : 'Claim'}
             </button>
           )}
         </div>

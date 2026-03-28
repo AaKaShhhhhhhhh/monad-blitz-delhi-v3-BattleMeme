@@ -1,25 +1,12 @@
-import { http, createConfig } from 'wagmi'
-import { injected, walletConnect } from 'wagmi/connectors'
+import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+import { monadTestnet } from 'wagmi/chains'
+import { http } from 'wagmi'
 
-export const monadTestnet = {
-  id: 10143,
-  name: 'Monad Testnet',
-  nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://testnet-rpc.monad.xyz'] },
-  },
-  blockExplorers: {
-    default: { name: 'Monad Explorer', url: 'https://testnet.monadexplorer.com' },
-  },
-}
-
-export const config = createConfig({
+export const config = getDefaultConfig({
+  appName: 'MemeWar',
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '',
   chains: [monadTestnet],
-  connectors: [
-    injected(),
-    walletConnect({ projectId: 'YOUR_PROJECT_ID' })
-  ],
   transports: {
-    [monadTestnet.id]: http(),
+    [monadTestnet.id]: http('https://testnet-rpc.monad.xyz'),
   },
 })
