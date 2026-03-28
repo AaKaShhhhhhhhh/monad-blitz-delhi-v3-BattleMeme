@@ -1,4 +1,3 @@
-cat << 'EOF' > foundry.toml
 [profile.default]
 src = "src"
 out = "out"
@@ -8,4 +7,3 @@ metadata_hash = "none"
 use_literal_content = true
 eth-rpc-url = "https://testnet-rpc.monad.xyz"
 chain_id = 10143
-EOF
